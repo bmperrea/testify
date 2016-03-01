@@ -228,15 +228,15 @@ func (m *Mock) findExpectedCall(method string, arguments ...interface{}) (int, *
 }
 
 func (m *Mock) findClosestCall(method string, arguments ...interface{}) (bool, *Call) {
-	diffCount := 0
+	closestDiffCount := 0
 	var closestCall *Call
 
 	for _, call := range m.expectedCalls() {
 		if call.Method == method {
 
 			_, tempDiffCount := call.Arguments.Diff(arguments)
-			if tempDiffCount < diffCount || diffCount == 0 {
-				diffCount = tempDiffCount
+			if tempDiffCount < closestDiffCount || closestDiffCount == 0 {
+				closestDiffCount = tempDiffCount
 				closestCall = call
 			}
 
@@ -308,7 +308,15 @@ func (m *Mock) MethodCalled(methodName string, arguments ...interface{}) Argumen
 		m.mutex.Unlock()
 
 		if closestFound {
-			panic(fmt.Sprintf("\n\nmock: Unexpected Method Call\n-----------------------------\n\n%s\n\nThe closest call I have is: \n\n%s\n\n%s\n", callString(methodName, arguments, true), callString(methodName, closestCall.Arguments, true), diffArguments(arguments, closestCall.Arguments)))
+			if functionName == closestCall.Method && closestCall.Repeatability == -1 {
+				panic(fmt.Sprintf(
+					"\n\nmock: Unexpected Method Call\n-----------------------------\n\n%s\n\n" +
+					"Found call, but Repeatability is exhausted. Use Times(n), Once(), Twice() or nothing to finetune.\n\n",
+					callString(functionName, arguments, true),
+				))
+			} else {
+				panic(fmt.Sprintf("\n\nmock: Unexpected Method Call\n-----------------------------\n\n%s\n\nThe closest call I have is: \n\n%s\n\n%s\n", callString(methodName, arguments, true), callString(methodName, closestCall.Arguments, true), diffArguments(arguments, closestCall.Arguments)))
+			}
 		} else {
 			panic(fmt.Sprintf("\nassert: mock: I don't know what to return because the method call was unexpected.\n\tEither do Mock.On(\"%s\").Return(...) first, or remove the %s() call.\n\tThis method was unexpected:\n\t\t%s\n\tat: %s", methodName, methodName, callString(methodName, arguments, true), assert.CallerInfo()))
 		}
